@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מחשבון עמלות גמל והשתלמות</title>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2980b9;
+            --background-color: #ecf0f1;
+            --text-color: #2c3e50;
+            --border-radius: 8px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1, h2 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #bdc3c7;
+            border-radius: var(--border-radius);
+            font-size: 16px;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: #ffffff;
+            border: none;
+            padding: 12px 20px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        button:hover {
+            background-color: var(--secondary-color);
+        }
+
+        #clientList, #monthlyReport {
+            margin-top: 30px;
+            border-top: 1px solid #bdc3c7;
+            padding-top: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: right;
+        }
+
+        th {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .credit {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>מחשבון עמלות גמל והשתלמות</h1>
+        
+        <div class="form-group">
+            <label for="date">תאריך:</label>
+            <input type="date" id="date">
+        </div>
+
+        <div class="form-group">
+            <label for="clientName">שם הלקוח:</label>
+            <input type="text" id="clientName">
+        </div>
+        
+        <div class="form-group">
+            <label for="company">חברת ניהול:</label>
+            <select id="company">
+                <option value="הראל">הראל</option>
+                <option value="מגדל">מגדל</option>
+                <option value="כלל">כלל</option>
+                <option value="הפניקס">הפניקס</option>
+                <option value="מור">מור</option>
+                <option value="ילין לפידות">ילין לפידות</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="amount">סכום הניוד (בש"ח):</label>
+            <input type="number" id="amount" min="0" step="1000">
+        </div>
+        
+        <button onclick="addClient()">הוסף לקוח לרשימה</button>
+        <button onclick="generateMonthlyReport()">הפק דוח חודשי</button>
+        <button onclick="downloadExcel()">הורד כקובץ אקסל</button>
+        <button onclick="sendToWhatsApp()">שלח לוואטסאפ</button>
+        <button onclick="clearAllData()">נקה את כל הנתונים</button>
+        
+        <div id="clientList">
+            <h2>רשימת לקוחות</h2>
+            <table id="clientTable">
+                <thead>
+                    <tr>
+                        <th>תאריך</th>
+                        <th>שם הלקוח</th>
+                        <th>חברת ניהול</th>
+                        <th>סכום הניוד</th>
+                        <th>עמלת היקף</th>
+                        <th>עמלת נפרעים (חודשי)</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div id="monthlyReport" class="hidden">
+            <h2>דוח חודשי</h2>
+            <div id="reportContent"></div>
+        </div>
+
+        <div class="credit">
+            כל הזכויות שמורות לאריאל אוחיון
+        </div>
+    </div>
+
+    <script>
+        let clients = [];
+
+        const companyData = {
+            'הראל': { scopeRate: 6000, monthlyRate: 0.00025 },
+            'מגדל': { scopeRate: 7000, monthlyRate: 0.00025 },
+            'כלל': { scopeRate: 7000, monthlyRate: 0.00025 },
+            'הפניקס': { scopeRate: 6500, monthlyRate: 0.00025 },
+            'מור': { scopeRate: 4000, monthlyRate: 0.00025 },
+            'ילין לפידות': { scopeRate: 4000, monthlyRate: 0.00025 }
+        };
+
+        function addClient() {
+            const date = document.getElementById('date').value;
+            const clientName = document.getElementById('clientName').value;
+            const company = document.getElementById('company').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+            
+            if (date && clientName && company && amount && !isNaN(amount)) {
+                const scopeCommission = calculateScopeCommission(amount, company);
+                const monthlyCommission = calculateMonthlyCommission(amount, company);
+                
+                clients.push({
+                    date,
+                    name: clientName,
+                    company,
+                    amount,
+                    scopeCommission,
+                    monthlyCommission
+                });
+                
+                updateClientList();
+                
+                // Clear input fields
+                document.getElementById('date').value = '';
+                document.getElementById('clientName').value = '';
+                document.getElementById('amount').value = '';
+            } else {
+                alert('נא למלא את כל השדות בצורה תקינה');
+            }
+        }
+        
+        function calculateScopeCommission(amount, company) {
+            const { scopeRate } = companyData[company];
+            return (amount / 1000000) * scopeRate;
+        }
+        
+        function calculateMonthlyCommission(amount, company) {
+            const { monthlyRate } = companyData[company];
+            return amount * monthlyRate;
+        }
+        
+        function updateClientList() {
+            const tableBody = document.querySelector('#clientTable tbody');
+            tableBody.innerHTML = '';
+            
+            clients.forEach((client) => {
+                const row = tableBody.insertRow();
+                row.insertCell(0).textContent = client.date;
+                row.insertCell(1).textContent = client.name;
+                row.insertCell(2).textContent = client.company;
+                row.insertCell(3).textContent = client.amount.toLocaleString() + ' ₪';
+                row.insertCell(4).textContent = client.scopeCommission.toLocaleString() + ' ₪';
+                row.insertCell(5).textContent = client.monthlyCommission.toLocaleString() + ' ₪';
+            });
+        }
+        
+        function generateMonthlyReport() {
+            if (clients.length === 0) {
+                alert('אין נתונים להפקת דוח. נא להוסיף לקוחות תחילה.');
+                return;
+            }
+            
+            const reportContent = document.getElementById('reportContent');
+            reportContent.innerHTML = '<h3>סיכום חודשי:</h3>';
+            
+            let totalAmount = 0;
+            let totalScopeCommission = 0;
+            let totalMonthlyCommission = 0;
+            
+            clients.forEach((client) => {
+                totalAmount += client.amount;
+                totalScopeCommission += client.scopeCommission;
+                totalMonthlyCommission += client.monthlyCommission;
+                
+                reportContent.innerHTML += `
+                    <p>${client.name} (${client.company}): 
+                    סכום ניוד: ${client.amount.toLocaleString()} ₪, 
+                    עמלת היקף: ${client.scopeCommission.toLocaleString()} ₪,
+                    עמלת נפרעים חודשית: ${client.monthlyCommission.toLocaleString()} ₪</p>
+                `;
+            });
+            
+            reportContent.innerHTML += `
+                <p><strong>סה"כ סכום ניוד: ${totalAmount.toLocaleString()} ₪</strong></p>
+                <p><strong>סה"כ עמלות היקף: ${totalScopeCommission.toLocaleString()} ₪</strong></p>
+                <p><strong>סה"כ עמלות נפרעים חודשיות: ${totalMonthlyCommission.toLocaleString()} ₪</strong></p>
+            `;
+            
+            document.getElementById('monthlyReport').classList.remove('hidden');
+        }
+        
+        function downloadExcel() {
+            if (clients.length === 0) {
+                alert('אין נתונים להורדה. נא להוסיף לקוחות תחילה.');
+                return;
+            }
+            
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+            csvContent += "תאריך,שם הלקוח,חברת ניהול,סכום הניוד,עמלת היקף,עמלת נפרעים חודשית\n";
+            
+            clients.forEach((client) => {
+                const row = [
+                    client.date,
+                    client.name,
+                    client.company,
+                    client.amount,
+                    client.scopeCommission,
+                    client.monthlyCommission
+                ].join(",");
+                csvContent += row + "\n";
+            });
+            
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "עמלות_גמל_והשתלמות.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
+        function sendToWhatsApp() {
+            if (clients.length === 0) {
+                alert('אין נתונים לשליחה. נא להוסיף לקוחות תחילה.');
+                return;
+            }
+            
+            let message = "סיכום עמלות גמל והשתלמות:\n\n";
+            clients.forEach((client, index) => {
+                message += `${index + 1}. ${client.name} (${client.company}) - ${client.date}:\n`;
+                message += `   סכום ניוד: ${client.amount.toLocaleString()} ₪\n`;
+                message += `   עמלת היקף: ${client.scopeCommission.toLocaleString()} ₪\n`;
+                message += `   עמלת נפרעים חודשית: ${client.monthlyCommission.toLocaleString()} ₪\n\n`;
+            });
+            
+            const encodedMessage = encodeURIComponent(message);
+            const whatsappLink = `https://wa.me/972545425189?text=${encodedMessage}`;
+            window.open(whatsappLink, '_blank');
+        }
+        
+        function clearAllData() {
+            document.getElementById('date').value = '';
+            document.getElementById('clientName').value = '';
+            document.getElementById('company').selectedIndex = 0;
+            document.getElementById('amount').value = '';
+            clients = [];
+            updateClientList();
+            document.getElementById('monthlyReport').classList.add('hidden');
+        }
+
+        // Set default date to today
+        document.getElementById('date').valueAsDate = new Date();
+    </script>
+</body>
+</html>
